@@ -2,16 +2,33 @@ TMUX bash completion based on [bash-it's tmux completion](https://github.com/Bas
 
 # Available completions
 
-* commands
+* commands (all of them, with their actual flags — see DEVELOPMENT.md)
 * files
 * sessions
 * windows
+* panes
+* clients
+* buffers
+* key tables
 
 # Installation
 
-## Using [`bash-completion`](https://github.com/scop/bash-completion)
+## Manual install
+
+You can simply download the completion file and source it as part of your shell startup.
+
+```sh
+$ curl -fSsL "https://raw.githubusercontent.com/aadrian/tmux-bash-completion/master/completions/tmux" > ~/.bash.tmux-bash-completion
+$ echo 'source ~/.bash.tmux-bash-completion' >> ~/.bashrc
+$ source ~/.bashrc # load it for your current session
+```
+
+## Automatic install (via the [`bash-completion`](https://github.com/scop/bash-completion) project)
 
 This installation method __requires__ [`bash-completion`](https://github.com/scop/bash-completion) 1.2 or higher.
+
+> **Limitation:** on `bash-completion` ≥ 2.17, this method may not take
+> effect — see [Troubleshooting](#troubleshooting).
 
 1. Follow the installation instructions for [`bash-completion`](https://github.com/scop/bash-completion)
 
@@ -33,7 +50,7 @@ $ mkdir -p "$dir"
 3. Download the file
 
 ```sh
-$ curl -fSsL "https://raw.githubusercontent.com/imomaliev/tmux-bash-completion/master/completions/tmux" > "${dir?error: dir not set: you must run the previous commands first}/tmux"
+$ curl -fSsL "https://raw.githubusercontent.com/aadrian/tmux-bash-completion/master/completions/tmux" > "${dir?error: dir not set: you must run the previous commands first}/tmux"
 ```
 
 4. Reload your configuration files
@@ -42,17 +59,27 @@ $ curl -fSsL "https://raw.githubusercontent.com/imomaliev/tmux-bash-completion/m
 $ source ~/.bashrc
 ```
 
-## Without `bash-completion`
+# Troubleshooting
 
-You can simply download the completion file and source it as part of your shell startup.
+Check what's actually registered for `tmux`:
 
 ```sh
-$ curl -fSsL "https://raw.githubusercontent.com/imomaliev/tmux-bash-completion/master/completions/tmux" > ~/.bash.tmux-bash-completion
-$ echo 'source ~/.bash.tmux-bash-completion' >> ~/.bashrc
-$ source ~/.bashrc # load it for your current session
+$ complete -p tmux
 ```
+
+* `complete -F _tmux tmux`: this project's completion is active (old or
+  current version). Working as expected.
+* `complete -F _comp_cmd_tmux tmux`: this is the tmux completion bundled
+  with the [`bash-completion` project](https://github.com/scop/bash-completion)
+  itself, included there since its 2.17.0 release. It's taking over
+  because its on-demand `completions/` loader never fires for a command
+  that's already registered elsewhere. Fix: use
+  [Manual install](#manual-install), which registers eagerly and
+  overwrites it.
+* Nothing printed: nothing is installed yet, or your shell hasn't reloaded
+  its configuration since installing — re-run step 4 of whichever method
+  you used.
 
 # TODO
 
-* use `list-sessions -F`
 * check all cases for `complete -o default`
