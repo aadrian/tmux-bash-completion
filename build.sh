@@ -88,7 +88,7 @@ _build_assemble() {
     local out="$root/completions/tmux-$version"
     local core="$root/core.bash"
 
-    local anchor='# new-session is the one command that needs hand-written completion beyond'
+    local anchor='# Commands whose usage ends in a trailing shell-command (new-session,'
     local split_line
     split_line=$(grep -n -F "$anchor" "$core" | head -1 | cut -d: -f1)
     if [[ -z $split_line ]]; then

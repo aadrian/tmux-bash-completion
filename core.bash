@@ -102,12 +102,16 @@ __tmux_init_completion()
     _get_comp_words_by_ref cur prev words cword
 }
 
-# new-session is the one command that needs hand-written completion beyond
-# flag values: its trailing [shell-command [argument ...]] means that once
-# `--` appears, everything after it is a nested command line, not a tmux
-# flag. _tmux_dispatch_command (generated) doesn't attempt general
-# positional/nested-command completion, so this wraps it.
-_tmux_dispatch_new_session() {
+# Commands whose usage ends in a trailing shell-command (new-session,
+# new-window, run-shell, ...) need hand-written completion beyond flag
+# values: once `--` appears, everything after it is a shell command line,
+# not a tmux flag. _tmux_dispatch_command (generated) doesn't attempt
+# general positional/nested-command completion, so its per-command arms
+# call this instead for exactly those commands (see generate.sh). $flags
+# is the same fallback flag-list _tmux_dispatch_command would otherwise
+# have used, passed in to avoid recursing back into it.
+_tmux_dispatch_shell_command() {
+    local flags=$1
     local i dashdash_index=-1
     for ((i = index; i < cword; i++)); do
         if [[ ${words[i]} == -- ]]; then
@@ -118,7 +122,7 @@ _tmux_dispatch_new_session() {
     if [[ $dashdash_index -ge 0 ]]; then
         _command_offset $((dashdash_index + 1))
     else
-        _tmux_dispatch_command new-session
+        options="$flags"
     fi
 }
 
@@ -159,7 +163,6 @@ _tmux() {
         case ${words[index]} in
             -L) _tmux_complete_socket_name "${cur}" ;;
             -S) _tmux_complete_socket_path "${cur}" ;;
-            new-session|new) _tmux_dispatch_new_session ;;
             *) _tmux_dispatch_command "${words[index]}" ;;
         esac # case ${cmd}
     fi # command specified

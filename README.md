@@ -79,7 +79,3 @@ $ complete -p tmux
 * Nothing printed: nothing is installed yet, or your shell hasn't reloaded
   its configuration since installing — re-run step 4 of whichever method
   you used.
-
-# TODO
-
-* check all cases for `complete -o default`

@@ -266,9 +266,17 @@ _tmux_gen_render() {
             value_arms+=("                -$f) $call ;;")
         done
 
-        local fallback
-        if [[ ${__cmd_args[$name]-} == "path" || ${__cmd_args[$name]-} == "path ..." ]]; then
+        local fallback args=${__cmd_args[$name]-}
+        if [[ $args == "path" || $args == "path ..." ]]; then
             fallback="                *) _filedir ;;"
+        elif [[ $args == "shell-command" || $args == "shell-command argument ..." ]]; then
+            # A real shell command line follows, not a tmux command
+            # (contrast if-shell's "shell-command command command", left
+            # alone below: its trailing positionals are tmux command
+            # names). _tmux_dispatch_shell_command needs the already-known
+            # flag list to fall back to below to avoid recursing back into
+            # this same dispatch.
+            fallback="                *) _tmux_dispatch_shell_command \"${all_flag_tokens[*]}\" ;;"
         else
             fallback="                *) options=\"${all_flag_tokens[*]}\" ;;"
         fi
