@@ -167,6 +167,116 @@ _tmux_gen_emit() {
     declare -p "$cmd_args_var" | sed "s/^declare -A $cmd_args_var=/declare -gA _tmux_gen_command_args=/"
 }
 
+# ---- Stage B: render intermediate data into readable case-statement bash --
+
+# Map a flag's value-type (as it appears verbatim in tmux's usage strings)
+# to the exact completer invocation core.bash should run for it, or nothing
+# if there's no specific completer (the flag still appears in the fallback
+# options list, just doesn't get its own value-completion arm). Dynamic,
+# live-server-state types (sessions/windows/panes/clients/buffers) dispatch
+# to core.bash's runtime completers; file/directory types reuse
+# bash-completion's own _filedir. Free-text types (a NEW name being typed,
+# e.g. window-name/session-name/new-buffer-name, or things tmux has no
+# enumeration command for, e.g. style/prompt/delay) are deliberately left
+# unmapped.
+_tmux_gen_completer_call_for_type() {
+    case $1 in
+        target-session) printf '_tmux_complete_session "${cur}" "${tmux_args[@]}"' ;;
+        target-client) printf '_tmux_complete_client "${cur}" "${tmux_args[@]}"' ;;
+        target-pane | src-pane | dst-pane)
+            printf '_tmux_complete_pane "${cur}" "${tmux_args[@]}"'
+            ;;
+        target-window | src-window | dst-window)
+            printf '_tmux_complete_window "${cur}" "${tmux_args[@]}"'
+            ;;
+        buffer-name) printf '_tmux_complete_buffer_name "${cur}" "${tmux_args[@]}"' ;;
+        key-table) printf '_tmux_complete_key_table "${cur}"' ;;
+        socket-name) printf '_tmux_complete_socket_name "${cur}"' ;;
+        socket-path) printf '_tmux_complete_socket_path "${cur}"' ;;
+        # Generic wildcards last: *-path would otherwise also swallow the
+        # exact "socket-path" match above (case patterns are first-match).
+        directory | *-directory) printf '_filedir -d' ;;
+        file | *-file | path | *-path) printf '_filedir' ;;
+    esac
+}
+
+# Render the case ${words[index]} in ... esac block body (one arm per
+# command, covering every canonical name and alias) that core.bash's _tmux()
+# dispatches into. Deliberately scoped to flag-value completion (dispatch on
+# $prev, same as today's hand-written script) plus one direct carry-over of
+# today's behavior: a command whose only positional argument is a bare
+# "path" (optionally repeated) gets unconditional _filedir, matching the
+# current source-file special case. General positional/nested-command
+# completion (e.g. completing the trailing shell-command on `new-session
+# ... --`) is intentionally out of scope here — core.bash keeps handling
+# that by hand, the same way it does today.
+_tmux_gen_render() {
+    local -n __canonical=$1
+    local -n __cmd_options=$2
+    local -n __cmd_args=$3
+
+    local -A members=()
+    local word target
+    for word in "${!__canonical[@]}"; do
+        target=${__canonical[$word]}
+        members[$target]+="$word "
+    done
+
+    local -a names
+    mapfile -t names < <(printf '%s\n' "${!members[@]}" | sort)
+
+    local name
+    for name in "${names[@]}"; do
+        local -a member_words
+        read -ra member_words <<<"${members[$name]}"
+        mapfile -t member_words < <(printf '%s\n' "${member_words[@]}" | sort)
+        local pattern
+        pattern=$(
+            IFS='|'
+            echo "${member_words[*]}"
+        )
+
+        local -a flags
+        mapfile -t flags < <(
+            local k
+            for k in "${!__cmd_options[@]}"; do
+                [[ $k == "$name:"* ]] && printf '%s\n' "${k#"$name:"}"
+            done | sort
+        )
+
+        local -a all_flag_tokens=() value_arms=()
+        local f type call
+        for f in "${flags[@]}"; do
+            all_flag_tokens+=("-$f")
+            type=${__cmd_options["$name:$f"]}
+            [[ -z $type ]] && continue
+            call=$(_tmux_gen_completer_call_for_type "$type")
+            [[ -z $call ]] && continue
+            value_arms+=("                -$f) $call ;;")
+        done
+
+        local fallback
+        if [[ ${__cmd_args[$name]-} == "path" || ${__cmd_args[$name]-} == "path ..." ]]; then
+            fallback="                *) _filedir ;;"
+        else
+            fallback="                *) options=\"${all_flag_tokens[*]}\" ;;"
+        fi
+
+        printf '            %s)\n' "$pattern"
+        if [[ ${#value_arms[@]} -eq 0 && ${#all_flag_tokens[@]} -eq 0 ]]; then
+            printf '            ;;\n'
+        else
+            printf '            case "$prev" in\n'
+            local arm
+            for arm in "${value_arms[@]}"; do
+                printf '%s\n' "$arm"
+            done
+            printf '%s\n' "$fallback"
+            printf '            esac ;;\n'
+        fi
+    done
+}
+
 _tmux_gen_main() {
     local tmux_bin=$1
     local outdir=$2
@@ -193,6 +303,10 @@ _tmux_gen_main() {
     _tmux_gen_emit "$version" global_options canonical cmd_options cmd_args \
         >"$outdir/tmux-$version.bash"
     echo "generate.sh: wrote $outdir/tmux-$version.bash" >&2
+
+    _tmux_gen_render canonical cmd_options cmd_args \
+        >"$outdir/tmux-$version.case.bash"
+    echo "generate.sh: wrote $outdir/tmux-$version.case.bash" >&2
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
