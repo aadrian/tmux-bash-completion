@@ -1,0 +1,9 @@
+# tmux versions build.sh generates completions/tmux-<version> for.
+# One version per line, oldest first. Blank lines and #-comments are
+# ignored. The LAST (newest) entry also becomes the unversioned
+# completions/tmux, which is the file bash-completion actually autoloads.
+#
+# To add a version: add a line, then run ./build.sh (or ./build.sh
+# <version> to build just that one). See DEVELOPMENT.md.
+3.4
+3.7c

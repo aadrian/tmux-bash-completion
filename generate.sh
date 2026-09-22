@@ -190,7 +190,7 @@ _tmux_gen_completer_call_for_type() {
             printf '_tmux_complete_window "${cur}" "${tmux_args[@]}"'
             ;;
         buffer-name) printf '_tmux_complete_buffer_name "${cur}" "${tmux_args[@]}"' ;;
-        key-table) printf '_tmux_complete_key_table "${cur}"' ;;
+        key-table) printf '_tmux_complete_key_table "${cur}" "${tmux_args[@]}"' ;;
         socket-name) printf '_tmux_complete_socket_name "${cur}"' ;;
         socket-path) printf '_tmux_complete_socket_path "${cur}"' ;;
         # Generic wildcards last: *-path would otherwise also swallow the
@@ -227,9 +227,20 @@ _tmux_gen_render() {
 
     local name
     for name in "${names[@]}"; do
-        local -a member_words
-        read -ra member_words <<<"${members[$name]}"
-        mapfile -t member_words < <(printf '%s\n' "${member_words[@]}" | sort)
+        # Canonical name first, then aliases sorted — matches the original
+        # hand-written file's "attach-session|attach)" convention. A pure
+        # alphabetical sort of all member words would sometimes put an
+        # alias first (attach < attach-session) and needlessly flip
+        # otherwise-unchanged arms in a diff against the original.
+        local -a all_words alias_words=()
+        read -ra all_words <<<"${members[$name]}"
+        local w
+        for w in "${all_words[@]}"; do
+            [[ $w == "$name" ]] && continue
+            alias_words+=("$w")
+        done
+        [[ ${#alias_words[@]} -gt 0 ]] && mapfile -t alias_words < <(printf '%s\n' "${alias_words[@]}" | sort)
+        local -a member_words=("$name" "${alias_words[@]}")
         local pattern
         pattern=$(
             IFS='|'
@@ -304,8 +315,16 @@ _tmux_gen_main() {
         >"$outdir/tmux-$version.bash"
     echo "generate.sh: wrote $outdir/tmux-$version.bash" >&2
 
-    _tmux_gen_render canonical cmd_options cmd_args \
-        >"$outdir/tmux-$version.case.bash"
+    {
+        echo '# Dispatches a tmux (sub)command name (canonical or alias) to its'
+        echo '# flag-value completion. $cur/$prev/$tmux_args and $options come from'
+        echo '# the caller (_tmux(), in core.bash) via dynamic scoping.'
+        echo '_tmux_dispatch_command() {'
+        echo '    case $1 in'
+        _tmux_gen_render canonical cmd_options cmd_args
+        echo '    esac'
+        echo '}'
+    } >"$outdir/tmux-$version.case.bash"
     echo "generate.sh: wrote $outdir/tmux-$version.case.bash" >&2
 }
 
