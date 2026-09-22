@@ -1,0 +1,34 @@
+@startuml
+title tmux-bash-completion — build pipeline
+
+skinparam componentStyle rectangle
+
+component "tmux binary\n(per versions.txt entry)" as TmuxBin
+component "generate.sh\n(parse)" as Parse
+component "generate.sh\n(render)" as Render
+component "core.bash\n(hand-written)" as CoreBash
+component "build.sh" as Build
+component "completions/tmux-<version>" as Versioned
+component "completions/tmux" as Default
+component "test/completion.bats" as CompletionTests
+
+database "test/fixtures/\ntmux-<version>/" as Fixtures
+
+TmuxBin --> Parse : "-h", "list-commands -F"
+Parse --> Fixtures : captured once, committed
+Parse --> Render : intermediate data\n(declare -A, in build/)
+Render --> Build : case-dispatch fragment
+CoreBash --> Build
+Build --> Versioned
+Versioned --> Default : --promote
+
+Fixtures ..> Parse : test/generate.bats\n(hermetic, no tmux binary)
+Versioned ..> CompletionTests : stubbed tmux
+
+note bottom of Versioned
+  diff completions/tmux-<old> vs
+  completions/tmux-<new> to review
+  what changed before promoting
+end note
+
+@enduml

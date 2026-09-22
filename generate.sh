@@ -12,7 +12,7 @@
 # The usage-string parsing approach (the bracket-stripping in
 # _tmux_gen_parse_usage) is adapted from bash-completion's
 # completions-core/tmux.bash (_comp_cmd_tmux__parse_usage), (c) its authors,
-# licensed GPL-2.0-or-later OR ISC. See DEVELOPMENT.md.
+# licensed GPL-2.0-or-later OR ISC.
 #
 # Usage: generate.sh <tmux-binary> <output-dir>
 # Writes <output-dir>/tmux-<version>.bash

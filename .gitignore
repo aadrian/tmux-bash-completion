@@ -1,5 +1,12 @@
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
 # Build dir
 /build/
 
 # local notes
-/PLAN.md
+/PLAN*.md

@@ -2,7 +2,7 @@ TMUX bash completion based on [bash-it's tmux completion](https://github.com/Bas
 
 # Available completions
 
-* commands (all of them, with their actual flags — see DEVELOPMENT.md)
+* commands, with their actual flags
 * files
 * sessions
 * windows
@@ -10,6 +10,9 @@ TMUX bash completion based on [bash-it's tmux completion](https://github.com/Bas
 * clients
 * buffers
 * key tables
+
+Includes all commands tmux has, not a hand-picked subset — see
+[How it's built](#how-its-built) below.
 
 # Installation
 
@@ -79,3 +82,10 @@ $ complete -p tmux
 * Nothing printed: nothing is installed yet, or your shell hasn't reloaded
   its configuration since installing — re-run step 4 of whichever method
   you used.
+
+# How it's built
+
+Generated from tmux's own `-h`/`list-commands` output rather than
+hand-maintained — see [DEVELOPMENT.md](DEVELOPMENT.md) for how.
+
+![build pipeline](build-pipeline.png)
